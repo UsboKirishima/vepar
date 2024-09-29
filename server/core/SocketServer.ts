@@ -2,6 +2,7 @@ import { Server, Socket } from 'socket.io';
 import http from 'http';
 import * as bcrypt from 'bcrypt';
 import 'dotenv/config'
+import CommmandParser from './CommandParser';
 
 export default class SocketServer {
     private server: http.Server;
@@ -79,8 +80,14 @@ export default class SocketServer {
 
                 const isAuthValid: boolean = await bcrypt.compare(process.env.PASSWORD, hashed_password);
 
-                if(isAuthValid === true)
-                    return this.io.emit('message', 'Valid Auth!');
+                /* Command length limiter */
+                if(data_object.command.length >= 1024) 
+                    return this.io.emit('message', 'Invalid Command: Command length must be < 1024 .');
+
+                if(isAuthValid === true) {
+                    new CommmandParser(data_object.command.split(' '));
+                    return this.io.emit('EOF');
+                }
 
                 return this.invalidAuth('Unexpected Behavior.');
             });
