@@ -9,7 +9,7 @@ const rl = readline.createInterface({
 });
 
 socket.on('message', (data: string) => {
-    console.log('Message from server:', data);
+    console.log('\nMessage from server:', data);
 });
 
 const promptUserInput = () => {
