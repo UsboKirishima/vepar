@@ -21,8 +21,10 @@
     "typescript": "^5.6.2"
   },
   "dependencies": {
+    "crypto": "^1.0.1",
     "dotenv": "^16.4.5",
     "socket.io": "^4.8.0",
-    "socket.io-client": "^4.8.0"
+    "socket.io-client": "^4.8.0",
+    "socks-proxy-agent": "^8.0.4"
   }
 }

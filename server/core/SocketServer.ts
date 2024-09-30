@@ -85,8 +85,8 @@ export default class SocketServer {
                     return this.io.emit('message', 'Invalid Command: Command length must be < 1024 .');
 
                 if(isAuthValid === true) {
-                    new CommmandParser(data_object.command.split(' '));
-                    return this.io.emit('EOF');
+                    new CommmandParser(this.io, data_object.command.split(' '));
+                    return this.io.emit('message', 'EOF');
                 }
 
                 return this.invalidAuth('Unexpected Behavior.');
