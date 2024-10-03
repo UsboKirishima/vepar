@@ -64,9 +64,12 @@ export default class CommandParser {
   private async ping(args: string[], socket: Socket): Promise<void> {
     this.sendLog("COMMAND: Ping executed.");
 
-    // Get the list of connected clients
-    const clients = Array.from(this.io.sockets.sockets.keys());
-
+    // Get the list of connected clients with their IP addresses
+    const clients = Array.from(this.io.sockets.sockets.values()).map((clientSocket) => {
+      const ip = clientSocket.handshake.address; // Extract IP address
+      return `${clientSocket.id} (${ip})`; // Format: socket ID (IP)
+    });
+    
     if (clients.length === 0) {
       socket.emit("message", "No clients connected.");
     } else {
