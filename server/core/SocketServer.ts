@@ -1,106 +1,138 @@
-import { Server, Socket } from 'socket.io';
-import http from 'http';
-import * as bcrypt from 'bcrypt';
-import 'dotenv/config'
-import CommmandParser from './CommandParser';
+import { Server, Socket } from "socket.io";
+import http from "http";
+import * as bcrypt from "bcrypt";
+import "dotenv/config";
+import CommandParser from "./CommandParser";
 
 export default class SocketServer {
-    private server: http.Server;
-    private io: Server;
+  private server: http.Server;
+  private io: Server;
 
-    constructor(port: number) {
-        this.server = http.createServer();
-        this.io = new Server(this.server);
+  /**
+   * Creates a new SocketServer instance.
+   * @param port - The port number on which the server will listen.
+   */
+  constructor(port: number) {
+    this.server = http.createServer();
+    this.io = new Server(this.server);
 
-        this.initializeEvents();
-        this.startServer(port);
-    }
+    this.initializeEvents();
+    this.startServer(port);
+  }
 
-    private invalidAuth(message?: string) {
+  /**
+   * Sends an "Invalid Auth" message to the client if the authentication fails.
+   * @param socket - The client socket that triggered the event.
+   * @param message - Optional message to specify why the authentication failed.
+   * @returns Emits a message to the client with the invalid authentication reason.
+   */
+  private invalidAuth(socket: Socket, message?: string) {
+    return socket.emit("message", `Invalid Auth: ${message}`);
+  }
+
+  /**
+   * Initializes event listeners for the Socket.IO server.
+   * This handles connections, message reception, and client disconnections.
+   */
+  private initializeEvents(): void {
+    this.io.on("connection", (socket: Socket) => {
+      console.log("A client connected:", socket.id);
+
+      /**
+       * Handles the "message" event for a connected client.
+       * The event expects a JSON string containing `auth` and `command`.
+       */
+      socket.on("message", async (data: string) => {
+        console.log("Message received:", data);
+
         /**
-         * @todo Check if devenv is production else don't display logs
-         * @example process.env.DEBUG === true ?? this.io.emit(...)
+         * Checks if a string is a valid JSON format.
+         * @param str - The string to be checked.
+         * @returns `true` if the string is a valid JSON, `false` otherwise.
          */
+        const isJson = (str: string): boolean => {
+          try {
+            JSON.parse(str);
+          } catch (e) {
+            return false;
+          }
+          return true;
+        };
 
-        return this.io.emit('message', `Invalid Auth: ` + message)
-    }
+        if (!isJson(data)) {
+          return this.invalidAuth(socket, "String content is not a valid JSON.");
+        }
 
-    private initializeEvents(): void {
-        this.io.on('connection', (socket: Socket) => {
-            console.log('A client connected:', socket.id);
+        if (!data.includes("auth") || !data.includes("command")) {
+          return this.invalidAuth(
+            socket,
+            "Fields `auth` and `command` not found.",
+          );
+        }
 
-            socket.on('message', async (data: string) => {
-                console.log('Message received:', data);
+        type Data = {
+          auth: string;
+          command: string;
+        };
 
-                /**
-                 * Input security checker & decoder
-                 * @example
-                 * {"auth": "key123", "command": "send <message>"}
-                 */
+        const data_object: Data = JSON.parse(data);
+        const regex = /^[a-zA-Z0-9]+$/;
 
-                /* Function to check if a string is json */
-                const isJson = (str: string): boolean => {
-                    try {
-                        JSON.parse(str);
-                    } catch (e) {
-                        return false;
-                    }
+        if (typeof data_object.auth !== "string") {
+          return this.invalidAuth(socket, "Not a string.");
+        }
 
-                    return true;
-                }
+        /* Regex filter */
+        if (!regex.test(data_object.auth)) {
+          return this.invalidAuth(socket, "Regex test failed.");
+        }
 
-                if(!isJson(data))
-                    return this.invalidAuth('String content is not a valid json.')
+        /* Length filter */
+        if (data_object.auth.length !== 2 ** 7) {
+          return this.invalidAuth(socket, "Length test failed.");
+        }
 
-                if(!data.includes('auth') || !data.includes('command'))
-                    return this.invalidAuth('Fields `auth` and `command` not found.');
+        const hashed_password: string = await bcrypt.hash(
+          data_object.auth,
+          10,
+        );
 
-                type Data = {
-                    auth: string;
-                    command: string;
-                }
+        if (!process.env.PASSWORD) {
+          return this.invalidAuth(
+            socket,
+            "Password not set on server settings.",
+          );
+        }
 
-                let data_object: Data = JSON.parse(data);
+        const isAuthValid: boolean = await bcrypt.compare(
+          process.env.PASSWORD,
+          hashed_password,
+        );
 
-                /* Chars Blacklist */
-                const regex = /^[a-zA-Z0-9]+$/;
+        if (isAuthValid === true) {
+          new CommandParser(this.io, data_object.command.split(" "), socket);
+          return socket.emit("message", "EOF");
+        }
 
-                /* Regex filter */
-                if(!regex.test(data_object.auth.toString()))
-                    return this.invalidAuth('Regex test failed.');
+        return this.invalidAuth(socket, "Unexpected Behavior.");
+      });
 
-                /* Length filter */
-                if(data_object.auth.toString().length !== 2**7)
-                    return this.invalidAuth('Length test failed.');
+      /**
+       * Handles the "disconnect" event when a client disconnects from the server.
+       */
+      socket.on("disconnect", () => {
+        console.log("Client disconnected:", socket.id);
+      });
+    });
+  }
 
-                let hashed_password: string = await bcrypt.hash(data_object.auth.toString(), 10);
-
-                if(!process.env.PASSWORD)
-                    return this.invalidAuth('Password not set on server settings.');
-
-                const isAuthValid: boolean = await bcrypt.compare(process.env.PASSWORD, hashed_password);
-
-                /* Command length limiter */
-                if(data_object.command.length >= 1024) 
-                    return this.io.emit('message', 'Invalid Command: Command length must be < 1024 .');
-
-                if(isAuthValid === true) {
-                    new CommmandParser(this.io, data_object.command.split(' '));
-                    return this.io.emit('message', 'EOF');
-                }
-
-                return this.invalidAuth('Unexpected Behavior.');
-            });
-
-            socket.on('disconnect', () => {
-                console.log('Client disconnected:', socket.id);
-            });
-        });
-    }
-
-    private startServer(port: number): void {
-        this.server.listen(port, () => {
-            console.log(`Server listening on http://localhost:${port}`);
-        });
-    }
+  /**
+   * Starts the HTTP server on the given port.
+   * @param port - The port number to listen on.
+   */
+  private startServer(port: number): void {
+    this.server.listen(port, () => {
+      console.log(`Server listening on http://localhost:${port}`);
+    });
+  }
 }
