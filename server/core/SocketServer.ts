@@ -3,6 +3,9 @@ import http from "http";
 import * as bcrypt from "bcrypt";
 import "dotenv/config";
 import CommandParser from "./CommandParser";
+import LogsManager from "./LogsManager";
+
+const logger: LogsManager = new LogsManager();
 
 export default class SocketServer {
   private server: http.Server;
@@ -44,6 +47,20 @@ export default class SocketServer {
        */
       socket.on("message", async (data: string) => {
         console.log("Message received:", data);
+
+
+        /**
+         * If data uses command `log <message>`
+         * and doesn't contains auth
+         * send logs to dashboard.
+         */
+        if(typeof data === 'string' 
+          && data.split(' ')[0].toLowerCase() === 'log'
+          && data.split(' ')[1] !== ''
+        ) {
+          //TODO: Use LogsManager to send logs to dashboard
+          return console.log(data.slice(1))
+        }
 
         /**
          * Checks if a string is a valid JSON format.
