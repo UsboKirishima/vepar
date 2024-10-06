@@ -11,4 +11,4 @@ import 'dotenv/config'
  */
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
-new SocketServer(PORT);
+export const VeparServer = new SocketServer(PORT);

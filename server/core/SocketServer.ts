@@ -10,6 +10,7 @@ const logger: LogsManager = new LogsManager();
 export default class SocketServer {
   private server: http.Server;
   private io: Server;
+  public clientIPs: Map<string, string> = new Map();
 
   /**
    * Creates a new SocketServer instance.
@@ -35,11 +36,14 @@ export default class SocketServer {
 
   /**
    * Initializes event listeners for the Socket.IO server.
-   * This handles connections, message reception, and client disconnections.
+   * This handles client connections, message reception, and disconnections.
    */
   private initializeEvents(): void {
     this.io.on("connection", (socket: Socket) => {
       console.log("A client connected:", socket.id);
+
+      const ip = socket.handshake.address.replace('::ffff:', '').replace('::1', '127.0.0.1');
+      this.clientIPs.set(socket.id, ip);
 
       /**
        * Handles the "message" event for a connected client.
@@ -48,19 +52,15 @@ export default class SocketServer {
       socket.on("message", async (data: string) => {
         console.log("Message received:", data);
 
+        if (typeof data === 'string' && ['message', 'ignore'].includes(data.split(' ')[0].toLowerCase()) && data.split(' ')[1] !== '') {
+          return new CommandParser(this.io, data.split(' '), socket, false);
+        }
 
         /**
-         * If data uses command `log <message>`
-         * and doesn't contains auth
-         * send logs to dashboard.
+         * Admin authentication requires the IP and password to match.
          */
-        if(typeof data === 'string' 
-          && data.split(' ')[0].toLowerCase() === 'log'
-          && data.split(' ')[1] !== ''
-        ) {
-          //TODO: Use LogsManager to send logs to dashboard
-          return console.log(data.slice(1))
-        }
+        if (!socket.handshake.address.includes(process.env.DASHBOARD_IP as string))
+          return this.invalidAuth(socket, "Client IP does not match with dashboard IP");
 
         /**
          * Checks if a string is a valid JSON format.
@@ -81,10 +81,7 @@ export default class SocketServer {
         }
 
         if (!data.includes("auth") || !data.includes("command")) {
-          return this.invalidAuth(
-            socket,
-            "Fields `auth` and `command` not found.",
-          );
+          return this.invalidAuth(socket, "Fields `auth` and `command` not found.");
         }
 
         type Data = {
@@ -99,36 +96,24 @@ export default class SocketServer {
           return this.invalidAuth(socket, "Not a string.");
         }
 
-        /* Regex filter */
         if (!regex.test(data_object.auth)) {
           return this.invalidAuth(socket, "Regex test failed.");
         }
 
-        /* Length filter */
         if (data_object.auth.length !== 2 ** 7) {
           return this.invalidAuth(socket, "Length test failed.");
         }
 
-        const hashed_password: string = await bcrypt.hash(
-          data_object.auth,
-          10,
-        );
+        const hashed_password: string = await bcrypt.hash(data_object.auth, 10);
 
         if (!process.env.PASSWORD) {
-          return this.invalidAuth(
-            socket,
-            "Password not set on server settings.",
-          );
+          return this.invalidAuth(socket, "Password not set on server settings.");
         }
 
-        const isAuthValid: boolean = await bcrypt.compare(
-          process.env.PASSWORD,
-          hashed_password,
-        );
+        const isAuthValid: boolean = await bcrypt.compare(process.env.PASSWORD, hashed_password);
 
         if (isAuthValid === true) {
-          new CommandParser(this.io, data_object.command.split(" "), socket);
-          return socket.emit("message", "EOF");
+          return new CommandParser(this.io, data_object.command.split(" "), socket, true);
         }
 
         return this.invalidAuth(socket, "Unexpected Behavior.");
@@ -139,6 +124,7 @@ export default class SocketServer {
        */
       socket.on("disconnect", () => {
         console.log("Client disconnected:", socket.id);
+        this.clientIPs.delete(socket.id);
       });
     });
   }
