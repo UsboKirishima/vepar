@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      crypto:
-        specifier: ^1.0.1
-        version: 1.0.1
       dotenv:
         specifier: ^16.4.5
         version: 16.4.5
@@ -164,10 +161,6 @@ packages:
 
   create-require@1.1.1:
     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
-
-  crypto@1.0.1:
-    resolution: {integrity: sha512-VxBKmeNcqQdiUQUW2Tzq0t377b54N2bMtXO/qiLa+6eRRmmC4qT3D4OnTGoT/U6O9aklQ/jTwbOtRMTTY8G0Ig==}
-    deprecated: This package is no longer supported. It's now a built-in Node module. If you've depended on crypto, you should switch to the one that's built-in.
 
   debug@4.3.7:
     resolution: {integrity: sha512-Er2nc/H7RrMXZBFCEim6TCmMk02Z8vLC2Rbi1KEBggpo0fS6l0S1nnapwmIi3yW/+GOJap1Krg4w0Hg80oCqgQ==}
@@ -587,8 +580,6 @@ snapshots:
       vary: 1.1.2
 
   create-require@1.1.1: {}
-
-  crypto@1.0.1: {}
 
   debug@4.3.7:
     dependencies:

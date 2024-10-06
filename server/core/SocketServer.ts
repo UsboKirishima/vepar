@@ -4,6 +4,7 @@ import * as bcrypt from "bcrypt";
 import "dotenv/config";
 import CommandParser from "./CommandParser";
 import LogsManager from "./LogsManager";
+import { cryptoModule } from "..";
 
 const logger: LogsManager = new LogsManager();
 
@@ -42,6 +43,10 @@ export default class SocketServer {
     this.io.on("connection", (socket: Socket) => {
       console.log("A client connected:", socket.id);
 
+      const publicKey = cryptoModule.getPublicKey();
+      socket.emit('public_key_received', publicKey);
+      console.log('Sent public_key to ' + socket.handshake.address)
+
       const ip = socket.handshake.address.replace('::ffff:', '').replace('::1', '127.0.0.1');
       this.clientIPs.set(socket.id, ip);
 
@@ -50,7 +55,20 @@ export default class SocketServer {
        * The event expects a JSON string containing `auth` and `command`.
        */
       socket.on("message", async (data: string) => {
+        const { encrypted_message, message_hash } = JSON.parse(data);
+        //const decrypted_message = cryptoModule.decrypt(encrypted_message);
+        //const isValid = cryptoModule.verifyHash(decrypted_message, message_hash);
+        
+        /**
+         * @todo Fix hash check -> returns always invalid
+         */
+        //console.log('test ' + decrypted_message)
+        //if(!isValid) return console.log('Invalid message hash check!');
+        //data = decrypted_message;
+
         console.log("Message received:", data);
+
+        console.log(data)
 
         if (typeof data === 'string' && ['message', 'ignore'].includes(data.split(' ')[0].toLowerCase()) && data.split(' ')[1] !== '') {
           return new CommandParser(this.io, data.split(' '), socket, false);
@@ -59,7 +77,9 @@ export default class SocketServer {
         /**
          * Admin authentication requires the IP and password to match.
          */
-        if (!socket.handshake.address.includes(process.env.DASHBOARD_IP as string))
+
+        let fix_ip = socket.handshake.address.replace('::1', '127.0.0.1').replace('::ffff:', '')
+        if (!fix_ip.includes(process.env.DASHBOARD_IP as string))
           return this.invalidAuth(socket, "Client IP does not match with dashboard IP");
 
         /**
