@@ -28,6 +28,21 @@ export default class CryptoModule {
         throw new Error('Public key not generated');
     }
 
+    public encryptFromKnownPublicKey(data: string, public_key_: pki.rsa.PublicKey ): { encryptedData: string, hash: string } {
+        if (!public_key_) {
+            throw new Error('Public key not available');
+        }
+
+        const hash = crypto.createHash('sha256').update(data).digest('hex');
+
+        const bufferEncryptedData: Buffer = Buffer.from(data);
+        const encryptedData = util.encode64(
+            public_key_.encrypt(bufferEncryptedData.toString(), "RSA-OAEP")
+        );
+
+        return { encryptedData, hash };
+    }
+
     public encrypt(data: string): { encryptedData: string, hash: string } {
         if (!this.publicKey) {
             throw new Error('Public key not available');

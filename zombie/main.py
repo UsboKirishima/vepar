@@ -44,8 +44,8 @@ def send_encrypted_message(message):
     
 def get_private_key():
     global private_key
-    with open(private_key_path, 'rb') as f:
-        private_key = RSA.import_key(f.read())
+    private_key = RSA.generate(2048)
+    return private_key
     
 def decrypt(encrypted_data, message_hash):
     global private_key

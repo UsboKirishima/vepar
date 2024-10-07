@@ -55,7 +55,6 @@ export default class SocketServer {
        * The event expects a JSON string containing `auth` and `command`.
        */
       socket.on("message", async (data: string) => {
-        console.log(data);
         const { encrypted_message, message_hash } = JSON.parse(data);
         const decrypted_message = cryptoModule.decrypt(encrypted_message);
         const isValid = cryptoModule.verifyHash(decrypted_message, message_hash);
