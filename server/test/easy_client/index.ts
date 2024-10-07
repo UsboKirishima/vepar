@@ -2,6 +2,7 @@ import { io } from "socket.io-client";
 import readline from "readline";
 import "dotenv/config";
 import CryptoModule from "../../crypto/CryptoModule";
+import { pki } from "node-forge";
 
 const socket = io("http://localhost:3000");
 const cryptoModule = new CryptoModule();
@@ -10,6 +11,14 @@ const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
 });
+
+let public_key: pki.rsa.PublicKey | null = null;
+
+
+socket.on('public_key_received', (data: string) => {
+  public_key = pki.publicKeyFromPem(data)
+  console.log(public_key ?? 'Public key received: ' + data)
+})
 
 socket.on("message", (data: string) => {
   console.log("\nMessage from server:", cryptoModule.decrypt(data));
@@ -25,7 +34,7 @@ const promptUserInput = () => {
       };
 
       try {
-        socket.emit("message", cryptoModule.encrypt(payload.command));
+        socket.emit("message", cryptoModule.encryptFromKnownPublicKey(payload.command, public_key as pki.rsa.PublicKey));
       } catch (error) {
         console.error("Error sending message:", error);
       }
