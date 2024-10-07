@@ -1,9 +1,10 @@
 import { io } from "socket.io-client";
 import readline from "readline";
 import "dotenv/config";
-import { cryptoModule } from "../..";
+import CryptoModule from "../../crypto/CryptoModule";
 
 const socket = io("http://localhost:3000");
+const cryptoModule = new CryptoModule();
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -24,7 +25,7 @@ const promptUserInput = () => {
       };
 
       try {
-        socket.emit("message", cryptoModule.encrypt(JSON.stringify(payload)));
+        socket.emit("message", cryptoModule.encrypt(payload.command));
       } catch (error) {
         console.error("Error sending message:", error);
       }
