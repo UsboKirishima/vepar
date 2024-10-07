@@ -12,7 +12,7 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-let public_key: pki.rsa.PublicKey | null = null;
+let public_key: pki.rsa.PublicKey;
 
 
 socket.on('public_key_received', (data: string) => {
@@ -34,7 +34,7 @@ const promptUserInput = () => {
       };
 
       try {
-        socket.emit("message", cryptoModule.encryptFromKnownPublicKey(payload.command, public_key as pki.rsa.PublicKey));
+        socket.emit("message", cryptoModule.encryptFromKnownPublicKey(payload.command, public_key));
       } catch (error) {
         console.error("Error sending message:", error);
       }
