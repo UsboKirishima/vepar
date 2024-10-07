@@ -1,9 +1,10 @@
 import { io } from "socket.io-client";
 import readline from "readline";
 import "dotenv/config";
-import { cryptoModule } from "../..";
+import CryptoModule from "../../crypto/CryptoModule";
 
 const socket = io("http://localhost:3000");
+const cryptoModule = new CryptoModule();
 
 const rl = readline.createInterface({
   input: process.stdin,
