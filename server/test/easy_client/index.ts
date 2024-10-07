@@ -24,7 +24,7 @@ const promptUserInput = () => {
       };
 
       try {
-        socket.emit("message", cryptoModule.encrypt(JSON.stringify(payload)));
+        socket.emit("message", cryptoModule.encrypt(payload.command));
       } catch (error) {
         console.error("Error sending message:", error);
       }
