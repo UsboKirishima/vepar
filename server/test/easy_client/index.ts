@@ -1,6 +1,7 @@
 import { io } from "socket.io-client";
 import readline from "readline";
 import "dotenv/config";
+import { cryptoModule } from "../..";
 
 const socket = io("http://localhost:3000");
 
@@ -10,7 +11,7 @@ const rl = readline.createInterface({
 });
 
 socket.on("message", (data: string) => {
-  console.log("\nMessage from server:", data);
+  console.log("\nMessage from server:", cryptoModule.decrypt(data));
 });
 
 const promptUserInput = () => {
@@ -23,7 +24,7 @@ const promptUserInput = () => {
       };
 
       try {
-        socket.emit("message", JSON.stringify(payload));
+        socket.emit("message", cryptoModule.encrypt(JSON.stringify(payload)));
       } catch (error) {
         console.error("Error sending message:", error);
       }

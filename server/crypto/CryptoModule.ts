@@ -1,24 +1,29 @@
 import * as crypto from 'crypto';
+import { pki, util } from 'node-forge';
 
 export default class CryptoModule {
-    private privateKey: crypto.KeyObject | null = null;
-    private publicKey: crypto.KeyObject | null = null;
+    private privateKey: pki.rsa.PrivateKey | null = null;
+    private publicKey: pki.rsa.PublicKey | null = null;
 
     constructor() {
         this.generateKeyPair();
     }
 
     private generateKeyPair(): void {
-        const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+
+        /*const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
             modulusLength: 2048,
-        });
+        });*/
+
+        const { publicKey, privateKey } = pki.rsa.generateKeyPair({ bits: 2048, e: 0x10001 });
+
         this.publicKey = publicKey;
         this.privateKey = privateKey;
     }
 
     public getPublicKey(): string {
         if (this.publicKey) {
-            return this.publicKey.export({ type: 'spki', format: 'pem' }) as string;
+            return pki.publicKeyToPem(this.publicKey);
         }
         throw new Error('Public key not generated');
     }
@@ -30,7 +35,10 @@ export default class CryptoModule {
 
         const hash = crypto.createHash('sha256').update(data).digest('hex');
 
-        const encryptedData = crypto.publicEncrypt(this.publicKey, Buffer.from(data, 'utf-8')).toString('base64');
+        const bufferEncryptedData: Buffer = Buffer.from(data);
+        const encryptedData = util.encode64(
+            this.publicKey.encrypt(bufferEncryptedData.toString(), "RSA-OAEP")
+        );
 
         return { encryptedData, hash };
     }
@@ -39,15 +47,21 @@ export default class CryptoModule {
         if (!this.privateKey) {
             throw new Error('Private key not available');
         }
-
+        /*
         const decryptedData = crypto.privateDecrypt({
             key: this.privateKey.toString(),
             passphrase: '',
             padding: crypto.constants.RSA_PKCS1_PADDING
         },
             Buffer.from(encryptedData, 'base64')
+        );*/
+
+        const decryptedData = this.privateKey.decrypt(
+            util.decode64(encryptedData),
+            "RSA-OAEP"
         );
-        return decryptedData.toString('utf-8');
+
+        return decryptedData;
     }
 
     public verifyHash(data: string, hash: string): boolean {

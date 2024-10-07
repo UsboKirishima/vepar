@@ -56,15 +56,15 @@ export default class SocketServer {
        */
       socket.on("message", async (data: string) => {
         const { encrypted_message, message_hash } = JSON.parse(data);
-        //const decrypted_message = cryptoModule.decrypt(encrypted_message);
-        //const isValid = cryptoModule.verifyHash(decrypted_message, message_hash);
+        const decrypted_message = cryptoModule.decrypt(encrypted_message);
+        const isValid = cryptoModule.verifyHash(decrypted_message, message_hash);
         
         /**
          * @todo Fix hash check -> returns always invalid
          */
-        //console.log('test ' + decrypted_message)
-        //if(!isValid) return console.log('Invalid message hash check!');
-        //data = decrypted_message;
+        console.log('test ' + decrypted_message)
+        if(!isValid) return console.log('Invalid message hash check!');
+        data = decrypted_message;
 
         console.log("Message received:", data);
 
