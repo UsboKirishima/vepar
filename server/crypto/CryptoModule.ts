@@ -1,12 +1,33 @@
 import * as crypto from 'crypto';
-import { pki, util } from 'node-forge';
+import forge from 'node-forge';
+import { DefaultEventsMap, Socket } from 'socket.io';
+import { Socket as ClientSocket_ } from 'socket.io-client';
 
 export default class CryptoModule {
-    private privateKey: pki.rsa.PrivateKey | null = null;
-    private publicKey: pki.rsa.PublicKey | null = null;
+    private privateKey: forge.pki.rsa.PrivateKey | null = null;
+    private publicKey: forge.pki.rsa.PublicKey | null = null;
+    private clientPublicKeys: { id: string; pkey: string }[] = [];
+    private socket: Socket | ClientSocket_ | null = null;
 
-    constructor() {
+    constructor(socket: Socket | ClientSocket_) {
         this.generateKeyPair();
+        this.socket = socket;
+    }
+
+    private isValidBase64(str: string): boolean {
+        return /^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/.test(
+            str
+        );
+    }
+
+    public set clientKeys(arr: { id: string; pkey: string }[]) {
+
+        this.clientPublicKeys = arr;
+        //console.table(this.clientPublicKeys)
+    }
+
+    public get clientKeys(): { id: string; pkey: string }[] {
+        return this.clientPublicKeys;
     }
 
     private generateKeyPair(): void {
@@ -15,7 +36,7 @@ export default class CryptoModule {
             modulusLength: 2048,
         });*/
 
-        const { publicKey, privateKey } = pki.rsa.generateKeyPair({ bits: 2048, e: 0x10001 });
+        const { publicKey, privateKey } = forge.pki.rsa.generateKeyPair({ bits: 2048, workers: 2 });
 
         this.publicKey = publicKey;
         this.privateKey = privateKey;
@@ -23,39 +44,46 @@ export default class CryptoModule {
 
     public getPublicKey(): string {
         if (this.publicKey) {
-            return pki.publicKeyToPem(this.publicKey);
+            return forge.pki.publicKeyToPem(this.publicKey);
         }
         throw new Error('Public key not generated');
     }
 
-    public encryptFromKnownPublicKey(data: string, public_key_: pki.rsa.PublicKey ): { encryptedData: string, hash: string } {
-        if (!public_key_) {
+    public encrypt(data: string, server: boolean = false): { encryptedData: string, hash: string } {
+
+        const keyOfThisSocketObject: {
+            id: string;
+            pkey: string;
+        } | undefined = this.clientPublicKeys.find(client => server ? client.id === 'server' : client.id === this.socket?.id);
+
+        console.log(this.clientPublicKeys)
+        if (keyOfThisSocketObject == undefined) {
             throw new Error('Public key not available');
         }
 
+        //console.log('key of this obj: ' + keyOfThisSocketObject.pkey);
+
+        const socketPublicKey: forge.pki.rsa.PublicKey = forge.pki.publicKeyFromPem(keyOfThisSocketObject.pkey);
+
         const hash = crypto.createHash('sha256').update(data).digest('hex');
 
-        const bufferEncryptedData: Buffer = Buffer.from(data);
-        const encryptedData = util.encode64(
-            public_key_.encrypt(bufferEncryptedData.toString(), "RSA-OAEP")
+        //const bufferEncryptedData: Buffer = Buffer.from(data);
+        const encodedData = forge.util.encodeUtf8(data)
+
+        const encryptedData = forge.util.encode64(
+            socketPublicKey.encrypt(encodedData, 'RSA-OAEP', {
+                md: forge.md.sha256.create()
+            }),
         );
 
         return { encryptedData, hash };
     }
 
-    public encrypt(data: string): { encryptedData: string, hash: string } {
-        if (!this.publicKey) {
-            throw new Error('Public key not available');
-        }
-
-        const hash = crypto.createHash('sha256').update(data).digest('hex');
-
-        const bufferEncryptedData: Buffer = Buffer.from(data);
-        const encryptedData = util.encode64(
-            this.publicKey.encrypt(bufferEncryptedData.toString(), "RSA-OAEP")
+    public sendEncryptedMessage(event: string, data: string, server: boolean = false) {
+        let encData = this.encrypt(data, server ?? true);
+        return this.socket?.emit(event,
+            JSON.stringify({ encrypted_message: encData.encryptedData, message_hash: encData.hash })
         );
-
-        return { encryptedData, hash };
     }
 
     public decrypt(encryptedData: string): string {
@@ -71,12 +99,23 @@ export default class CryptoModule {
             Buffer.from(encryptedData, 'base64')
         );*/
 
-        const decryptedData = this.privateKey.decrypt(
-            util.decode64(encryptedData),
-            "RSA-OAEP"
-        );
+        //console.log('TO DEC: ' + encryptedData)
+        //console.log('PRIV: ' + forge.pki.privateKeyToPem(this.privateKey))
 
-        return decryptedData;
+        if (!this.isValidBase64(encryptedData)) {
+            throw new Error('Invalid base64 Detected!');
+        }
+
+        try {
+            const decodedData = forge.util.decode64(encryptedData);
+            const decryptedData = this.privateKey.decrypt(decodedData, 'RSA-OAEP', {
+                md: forge.md.sha256.create()
+            });
+
+            return forge.util.decodeUtf8(decryptedData);
+        } catch (error: any) {
+            throw new Error(error);
+        }
     }
 
     public verifyHash(data: string, hash: string): boolean {

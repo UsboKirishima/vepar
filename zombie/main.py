@@ -22,9 +22,9 @@ def public_key_received(data):
 def send_encrypted_message(message):
     time.sleep(3)
     global public_key
-    while public_key is None:  
+    while public_key is None:
         print("Waiting for public key...")
-        time.sleep(1)  
+        time.sleep(1)
     
     a_hash = hashlib.sha256()
     a_hash.update(message.encode())

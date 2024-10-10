@@ -12,5 +12,5 @@ import CryptoModule from "./crypto/CryptoModule";
  */
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
-export const cryptoModule = new CryptoModule();
+//export const cryptoModule = new CryptoModule();
 export const VeparServer = new SocketServer(PORT);

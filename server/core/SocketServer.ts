@@ -4,7 +4,7 @@ import * as bcrypt from "bcrypt";
 import "dotenv/config";
 import CommandParser from "./CommandParser";
 import LogsManager from "./LogsManager";
-import { cryptoModule } from "..";
+import CryptoModule from "../crypto/CryptoModule";
 
 const logger: LogsManager = new LogsManager();
 
@@ -12,6 +12,7 @@ export default class SocketServer {
   private server: http.Server;
   private io: Server;
   public clientIPs: Map<string, string> = new Map();
+  private clientPublicKeys: { id: string; pkey: string }[] = [];
 
   /**
    * Creates a new SocketServer instance.
@@ -40,8 +41,10 @@ export default class SocketServer {
    * This handles client connections, message reception, and disconnections.
    */
   private initializeEvents(): void {
-    this.io.on("connection", (socket: Socket) => {
+    this.io.on("connection", async (socket: Socket) => {
       console.log("A client connected:", socket.id);
+
+      const cryptoModule: CryptoModule = new CryptoModule(socket);
 
       const publicKey = cryptoModule.getPublicKey();
       socket.emit('public_key_received', publicKey);
@@ -50,19 +53,38 @@ export default class SocketServer {
       const ip = socket.handshake.address.replace('::ffff:', '').replace('::1', '127.0.0.1');
       this.clientIPs.set(socket.id, ip);
 
+
+      socket.on('client_key_to_server', async (data: string) => {
+
+        console.log('Received: ' + data);
+        this.clientPublicKeys.push({
+          id: socket.id,
+          pkey: publicKey
+        });
+
+        //Passing client public keys to Crypto Module 
+        cryptoModule.clientKeys = this.clientPublicKeys;
+      });
+
+      setTimeout(() => {
+        cryptoModule.sendEncryptedMessage('message', 'Hello, from server');
+      }, 1000)
+
       /**
        * Handles the "message" event for a connected client.
        * The event expects a JSON string containing `auth` and `command`.
        */
       socket.on("message", async (data: string) => {
         const { encrypted_message, message_hash } = JSON.parse(data);
+        console.log(encrypted_message)
         const decrypted_message = cryptoModule.decrypt(encrypted_message);
         const isValid = cryptoModule.verifyHash(decrypted_message, message_hash);
-        
+
+
         /**
          * @todo Fix hash check -> returns always invalid
          */
-        if(!isValid) return console.log('Invalid message hash check!');
+        if (!isValid) return console.log('Invalid message hash check!');
         data = decrypted_message;
 
         console.log("Message received:", data);
@@ -70,7 +92,7 @@ export default class SocketServer {
         console.log(data)
 
         if (typeof data === 'string' && ['message', 'ignore'].includes(data.split(' ')[0].toLowerCase()) && data.split(' ')[1] !== '') {
-          return new CommandParser(this.io, data.split(' '), socket, false);
+          return new CommandParser(this.io, data.split(' '), socket, false, cryptoModule);
         }
 
         /**
@@ -132,7 +154,7 @@ export default class SocketServer {
         const isAuthValid: boolean = await bcrypt.compare(process.env.PASSWORD, hashed_password);
 
         if (isAuthValid === true) {
-          return new CommandParser(this.io, data_object.command.split(" "), socket, true);
+          return new CommandParser(this.io, data_object.command.split(" "), socket, true, cryptoModule);
         }
 
         return this.invalidAuth(socket, "Unexpected Behavior.");
