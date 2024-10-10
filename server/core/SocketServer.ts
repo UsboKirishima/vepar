@@ -66,17 +66,15 @@ export default class SocketServer {
         cryptoModule.clientKeys = this.clientPublicKeys;
       });
 
-      setTimeout(() => {
-        cryptoModule.sendEncryptedMessage('message', 'Hello, from server');
-      }, 1000)
 
       /**
        * Handles the "message" event for a connected client.
        * The event expects a JSON string containing `auth` and `command`.
        */
       socket.on("message", async (data: string) => {
+        //console.log('Data: ' + data)
         const { encrypted_message, message_hash } = JSON.parse(data);
-        console.log(encrypted_message)
+        //console.log(encrypted_message)
         const decrypted_message = cryptoModule.decrypt(encrypted_message);
         const isValid = cryptoModule.verifyHash(decrypted_message, message_hash);
 
@@ -89,7 +87,7 @@ export default class SocketServer {
 
         console.log("Message received:", data);
 
-        console.log(data)
+        //console.log(data)
 
         if (typeof data === 'string' && ['message', 'ignore'].includes(data.split(' ')[0].toLowerCase()) && data.split(' ')[1] !== '') {
           return new CommandParser(this.io, data.split(' '), socket, false, cryptoModule);
