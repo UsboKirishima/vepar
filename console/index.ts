@@ -1,6 +1,7 @@
 import { Socket, io } from "socket.io-client";
 import { Console } from "./Console";
 import { Logger } from "./Logger";
+import * as readline from 'readline';
 
 const socket: Socket = io('http://localhost:3000');
 
@@ -35,10 +36,40 @@ ${colors.Red}     \____________________________\_/${colors.Cyan}     / / \ \
 `)
 }
 
+enum Commands {
+    back = 'back',
+    help = 'help',
+    credits = 'credits',
+    ping = 'ping'
+}
+
+const helpMenu = () => {
+    console.log(String.raw`
+______________________________
+
+ - ${colors.Blue}${Commands.back}${colors.Reset}
+ - ${colors.Blue}${Commands.help}${colors.Reset}
+ - ${colors.Blue}${Commands.credits}${colors.Reset}
+ - ${colors.Blue}${Commands.ping}${colors.Reset}
+    `)
+}
+
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+const inputLoop = () => {
+    rl.question('> ', (command) => {
+        if(command.trim().toLowerCase() == 'help') helpMenu();
+        inputLoop();
+    });
+}
+
 (async () => {
     console.clear();
     printAscii();
     const vpconsole = new Console(socket);
-    Logger.log('Welcome to Vepar!\nGetting start using `help` command')
-    Logger.info('VpConsole connected to vepar server.')
+    Logger.log('Welcome to Vepar!\nGetting started using `help` command')
+    inputLoop();
 })();

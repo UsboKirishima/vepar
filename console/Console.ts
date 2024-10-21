@@ -10,7 +10,7 @@ export class Console {
     private socket: Socket;
     private public_key: forge.pki.rsa.PublicKey;
     /*@ts-ignore*/
-    private server_public_key: forge.pki.rsa.PublicKey; 
+    private server_public_key: forge.pki.rsa.PublicKey;
     private server_public_key_received: boolean = false;
 
     /**
@@ -48,6 +48,10 @@ export class Console {
 
             Logger.info('Public key received from server.')
         });
+
+        this.socket.on('connect', () => {
+            Logger.info('VpConsole connected to vepar server.')
+        })
 
         this.socket.on("message", (data: string) => {
             let { encrypted_message, message_hash } = JSON.parse(data);
